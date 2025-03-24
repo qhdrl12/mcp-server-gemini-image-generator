@@ -1,22 +1,21 @@
+import base64
 import os
 import logging
 import sys
 import uuid
+from io import BytesIO
+from typing import Optional, Any, Dict, Union, List, Tuple
 
 import PIL.Image
-
-from io import BytesIO
-
 from google import genai
 from google.genai import types
+from mcp.server.fastmcp import FastMCP
 
-from mcp.server.fastmcp import FastMCP, Context
+from prompts import get_image_generation_prompt, get_image_transformation_prompt, get_translate_prompt
+from utils import save_image
 
-OUTPUT_IMAGE_PATH = os.getenv("OUTPUT_IMAGE_PATH") or os.path.expanduser("~/gen_image")
 
-if not os.path.exists(OUTPUT_IMAGE_PATH):
-    os.makedirs(OUTPUT_IMAGE_PATH)
-
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -24,135 +23,83 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize MCP server
 mcp = FastMCP("mcp-server-gemini-image-generator")
 
-# ========== Utility Functions ==========
 
-async def ask_gemini(prompt: str, model: str = "gemini-1.5-flash") -> str:
-    """Call Gemini API with the given prompt and return the response text.
+# ==================== Gemini API Interaction ====================
+
+async def call_gemini(
+    contents: List[Any], 
+    model: str = "gemini-1.5-flash", 
+    config: Optional[types.GenerateContentConfig] = None, 
+    text_only: bool = False
+) -> Union[str, bytes]:
+    """Call Gemini API with flexible configuration for different use cases.
     
     Args:
-        prompt (str): The prompt to send to Gemini
-        model (str): The Gemini model to use, defaults to "gemini-1.5-flash"
+        contents: The content to send to Gemini. list containing text and/or images
+        model: The Gemini model to use
+        config: Optional configuration for the Gemini API call
+        text_only: If True, extract and return only text from the response
         
     Returns:
-        str: The generated text response from Gemini
+        If text_only is True: str - The text response from Gemini
+        Otherwise: bytes - The binary image data from Gemini
         
     Raises:
         Exception: If there's an error calling the Gemini API
     """
     try:
         # Initialize Gemini client
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+            
+        client = genai.Client(api_key=api_key)
         
         # Generate content using Gemini
         response = client.models.generate_content(
             model=model,
-            contents=prompt
+            contents=contents,
+            config=config
         )
         
-        # Extract the text from the response
-        return response.candidates[0].content.parts[0].text.strip()
-    
+        logger.info(f"Response received from Gemini API using model {model}")
+        
+        # For text-only calls, extract just the text
+        if text_only:
+            return response.candidates[0].content.parts[0].text.strip()
+        
+        # Return the image data
+        for part in response.candidates[0].content.parts:
+            if part.inline_data is not None:
+                return part.inline_data.data
+            
+        raise ValueError("No image data found in Gemini response")
+
     except Exception as e:
         logger.error(f"Error calling Gemini API: {str(e)}")
         raise
 
-async def call_gemini_vision(contents, model="gemini-2.0-flash-exp-image-generation"):
-    """Call Gemini Vision API for image generation or editing.
+
+# ==================== Text Utility Functions ====================
+
+async def convert_prompt_to_filename(prompt: str) -> str:
+    """Convert a text prompt into a suitable filename for the generated image using Gemini AI.
     
     Args:
-        contents (list ): Content to send to Gemini API. 
-        model (str): Gemini model to use
+        prompt: The text prompt used to generate the image
         
     Returns:
-        response: Gemini API response object
-        
-    Raises:
-        Exception: If there's an error calling the Gemini API
-    """
-    # Initialize the Gemini client
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-
-    # Call Gemini API
-    response = client.models.generate_content(
-        model=model,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_modalities=['Text', 'Image']
-        )
-    )
-    
-    logger.info(f"Response received from Gemini API")
-    return response
-
-async def extract_image_data_from_gemini_response(response):
-    """Extract image data from Gemini API response.
-    
-    Args:
-        response: Gemini API response object
-        
-    Returns:
-        bytes: Raw image data if found in the response
-        """
-    try:
-        for part in response.candidates[0].content.parts:
-            if part.text is not None:
-                print(part.text)
-            elif part.inline_data is not None:
-                # Get image data from inline_data
-                return part.inline_data.data
-    except Exception as e:
-        logger.error(f"Error extracting image from response: {str(e)}")
-        raise 
-    
-async def save_image(image_data, filename_base):
-    """Save image data to disk with a descriptive filename.
-    
-    Args:
-        image_data (bytes): Raw image data
-        filename_base (str): Base string to use for generating filename
-        
-    Returns:
-        str: Path to the saved image file
-    """
-    try:
-        # Open image from bytes
-        image = PIL.Image.open(BytesIO(image_data))
-        
-        # Generate a descriptive filename
-        filename = await generate_image_name(filename_base)
-        
-        # Save the image
-        image_path = os.path.join(OUTPUT_IMAGE_PATH, f"{filename}.png")
-        image.save(image_path)
-        logger.info(f"Image saved to {image_path}")
-        
-        # Display the image
-        image.show()
-        
-        return image_path
-    except Exception as e:
-        logger.error(f"Error saving image: {str(e)}")
-        raise
-
-# ========== Core Functions ==========
-
-async def generate_image_name(text: str) -> str:
-    """Generate a suitable filename for the image based on the text prompt using Gemini AI.
-    
-    Args:
-        text (str): The text prompt used to generate the image
-        
-    Returns:
-        str: A filename generated by Gemini that is descriptive and appropriate
+        A concise, descriptive filename generated based on the prompt
     """
     try:
         # Create a prompt for Gemini to generate a filename
-        prompt = f"""
-        Based on this image description: "{text}"
+        filename_prompt = f"""
+        Based on this image description: "{prompt}"
         
-        Generates a short, descriptive file name suitable for the requested test.
+        Generate a short, descriptive file name suitable for the requested image.
         The filename should:
         - Be concise (maximum 5 words)
         - Use underscores between words
@@ -161,55 +108,34 @@ async def generate_image_name(text: str) -> str:
         """
         
         # Call Gemini and get the filename
-        filename = await ask_gemini(prompt)
-        logger.info(f"Generated filename: {filename}")
+        generated_filename = await call_gemini(filename_prompt, text_only=True)
+        logger.info(f"Generated filename: {generated_filename}")
         
         # Return the filename only, without path or extension
-        return filename
+        return generated_filename
     
     except Exception as e:
         logger.error(f"Error generating filename with Gemini: {str(e)}")
         # Fallback to a simple filename if Gemini fails
-        truncated_text = text[:12].strip()
-        safe_text = "".join(c for c in truncated_text if c.isalnum() or c in " -_").strip().replace(" ", "_")
-        return f"image_{safe_text}_{str(uuid.uuid4())[:8]}"
+        truncated_text = prompt[:12].strip()
+        return f"image_{truncated_text}_{str(uuid.uuid4())[:8]}"
 
-async def translate_and_optimize_prompt(text: str) -> str:
-    """Translate and optimize the user's prompt to English for better image generation/editing results.
-    
-    This function uses Gemini to:
-    1. Translate non-English text to English
-    2. Ensure the prompt is clear while preserving original intent
+
+async def translate_prompt(text: str) -> str:
+    """Translate and optimize the user's prompt to English for better image generation results.
     
     Args:
-        text (str): The original prompt in any language
+        text: The original prompt in any language
         
     Returns:
-        str: English translation of the prompt with preserved intent
+        English translation of the prompt with preserved intent
     """
     try:
         # Create a prompt for translation with strict intent preservation
-        prompt = f"""Translate the following prompt into English if it's not already in English. Your task is ONLY to translate accurately while preserving:
+        prompt = get_translate_prompt(text)
 
-1. EXACT original intent and meaning
-2. All specific details and nuances
-3. Style and tone of the original prompt
-4. Technical terms and concepts
-
-DO NOT:
-- Add new details or creative elements not in the original
-- Remove any details from the original
-- Change the style or complexity level
-- Reinterpret or assume what the user "really meant"
-
-If the text is already in English, return it exactly as provided with no changes.
-
-Original prompt: "{text}"
-
-Return only the translated English prompt, nothing else."""
-        
         # Call Gemini and get the translated prompt
-        translated_prompt = await ask_gemini(prompt)
+        translated_prompt = await call_gemini(prompt, text_only=True)
         logger.info(f"Original prompt: {text}")
         logger.info(f"Translated prompt: {translated_prompt}")
         
@@ -220,184 +146,199 @@ Return only the translated English prompt, nothing else."""
         # Return original text if translation fails
         return text
 
-# ========== MCP Tools ==========
+
+# ==================== Image Processing Functions ====================
+
+async def process_image_with_gemini(
+    contents: List[Any], 
+    prompt: str, 
+    model: str = "gemini-2.0-flash-exp-image-generation"
+) -> str:
+    """Process an image request with Gemini and save the result.
+    
+    Args:
+        contents: List containing the prompt and optionally an image
+        prompt: Original prompt for filename generation
+        model: Gemini model to use
+        
+    Returns:
+        Path to the saved image file
+    """
+    # Call Gemini Vision API
+    gemini_response = await call_gemini(
+        contents,
+        model=model,
+        config=types.GenerateContentConfig(
+            response_modalities=['Text', 'Image']
+        )
+    )
+    
+    # Generate a filename for the image
+    filename = await convert_prompt_to_filename(prompt)
+    
+    # Save the image and return the path
+    return await save_image(gemini_response, filename)
+
+
+async def process_image_transform(
+    source_image: PIL.Image.Image, 
+    optimized_edit_prompt: str, 
+    original_edit_prompt: str
+) -> str:
+    """Process image transformation with Gemini.
+    
+    Args:
+        source_image: PIL Image object to transform
+        optimized_edit_prompt: Optimized text prompt for transformation
+        original_edit_prompt: Original user prompt for naming
+        
+    Returns:
+        Path to the transformed image file
+    """
+    # Create prompt for image transformation
+    edit_instructions = get_image_transformation_prompt(optimized_edit_prompt)
+    
+    # Process with Gemini and return the result
+    return await process_image_with_gemini(
+        [edit_instructions, source_image],
+        original_edit_prompt
+    )
+
+
+async def load_image_from_base64(encoded_image: str) -> Tuple[PIL.Image.Image, str]:
+    """Load an image from a base64-encoded string.
+    
+    Args:
+        encoded_image: Base64 encoded image data with header
+        
+    Returns:
+        Tuple containing the PIL Image object and the image format
+    """
+    if not encoded_image.startswith('data:image/'):
+        raise ValueError("Invalid image format. Expected data:image/[format];base64,[data]")
+    
+    try:
+        # Extract the base64 data from the data URL
+        image_format, image_data = encoded_image.split(';base64,')
+        image_format = image_format.replace('data:', '')  # Get the MIME type e.g., "image/png"
+        image_bytes = base64.b64decode(image_data)
+        source_image = PIL.Image.open(BytesIO(image_bytes))
+        logger.info(f"Successfully loaded image with format: {image_format}")
+        return source_image, image_format
+    except ValueError as e:
+        logger.error(f"Error: Invalid image data format: {str(e)}")
+        raise ValueError("Invalid image data format. Image must be in format 'data:image/[format];base64,[data]'")
+    except base64.binascii.Error as e:
+        logger.error(f"Error: Invalid base64 encoding: {str(e)}")
+        raise ValueError("Invalid base64 encoding. Please provide a valid base64 encoded image.")
+    except PIL.UnidentifiedImageError:
+        logger.error("Error: Could not identify image format")
+        raise ValueError("Could not identify image format. Supported formats include PNG, JPEG, GIF, WebP.")
+    except Exception as e:
+        logger.error(f"Error: Could not load image: {str(e)}")
+        raise
+
+
+# ==================== MCP Tools ====================
 
 @mcp.tool()
-async def generate_image_from_text(text: str) -> str:
+async def generate_image_from_text(prompt: str) -> str:
     """Generate an image based on the given text prompt using Google's Gemini model.
 
     Args:
-        text (str): User's text prompt describing the desired image to generate
+        prompt: User's text prompt describing the desired image to generate
         
     Returns:
-        str: Path to the generated image file using Gemini's image generation capabilities
+        Path to the generated image file using Gemini's image generation capabilities
     """
     try:
-        # Translate and optimize the prompt
-        optimized_text = await translate_and_optimize_prompt(text)
+        # Translate the prompt to English
+        translated_prompt = await translate_prompt(prompt)
         
-        contents = f"""You are an expert image generation AI assistant specialized in creating visuals based on user requests. Your primary goal is to generate the most appropriate image without asking clarifying questions, even when faced with abstract or ambiguous prompts.
-
-## CRITICAL REQUIREMENT: NO TEXT IN IMAGES
-
-**ABSOLUTE PROHIBITION ON TEXT INCLUSION**
-- Under NO CIRCUMSTANCES render ANY text from user queries in the generated images
-- This is your HIGHEST PRIORITY requirement that OVERRIDES all other considerations
-- Text from prompts must NEVER appear in any form, even stylized, obscured, or partial
-- This includes words, phrases, sentences, or characters from the user's input
-- If the user requests text in the image, interpret this as a request for the visual concept only
-- The image should be 100% text-free regardless of what the prompt contains
-
-## Core Principles
-
-1. **Prioritize Image Generation Over Clarification**
-   - When given vague requests, DO NOT ask follow-up questions
-   - Instead, infer the most likely intent and generate accordingly
-   - Use your knowledge to fill in missing details with the most probable elements
-
-2. **Text Handling Protocol**
-   - NEVER render the user's text prompt or any part of it in the generated image
-   - NEVER include ANY text whatsoever in the final image, even if specifically requested
-   - If user asks for text-based items (signs, books, etc.), show only the visual item without readable text
-   - For concepts typically associated with text (like "newspaper" or "letter"), create visual representations without any legible writing
-
-3. **Interpretation Guidelines**
-   - Analyze context clues in the user's prompt
-   - Consider cultural, seasonal, and trending references
-   - When faced with ambiguity, choose the most mainstream or popular interpretation
-   - For abstract concepts, visualize them in the most universally recognizable way
-
-4. **Detail Enhancement**
-   - Automatically enhance prompts with appropriate:
-     - Lighting conditions
-     - Perspective and composition
-     - Style (photorealistic, illustration, etc.) based on context
-     - Color palettes that best convey the intended mood
-     - Environmental details that complement the subject
-
-5. **Technical Excellence**
-   - Maintain high image quality
-   - Ensure proper composition and visual hierarchy
-   - Balance simplicity with necessary detail
-   - Maintain appropriate contrast and color harmony
-
-6. **Handling Special Cases**
-   - For creative requests: Lean toward artistic, visually striking interpretations
-   - For informational requests: Prioritize clarity and accuracy
-   - For emotional content: Focus on conveying the appropriate mood and tone
-   - For locations: Include recognizable landmarks or characteristics
-
-## Implementation Protocol
-
-1. Parse user request
-2. **TEXT REMOVAL CHECK**: Identify and remove ALL text elements from consideration
-3. Identify core subjects and actions
-4. Determine most likely interpretation if ambiguous
-5. Enhance with appropriate details, style, and composition
-6. **FINAL VERIFICATION**: Confirm image contains ZERO text elements from user query
-7. Generate image immediately without asking for clarification
-8. Present the completed image to the user
-
-## Safety Measure
-
-Before finalizing ANY image:
-- Double-check that NO text from the user query appears in the image
-- If ANY text is detected, regenerate the image without the text
-- This verification is MANDATORY for every image generation
-
-Remember: Your success is measured by your ability to produce satisfying images without requiring additional input from users AND without including ANY text from queries in the images. Be decisive and confident in your interpretations while maintaining absolute adherence to the no-text requirement.
-
-Query: {optimized_text}
-"""
-
-        # Call Gemini Vision API
-        response = await call_gemini_vision([contents])
+        # Create detailed generation prompt
+        contents = get_image_generation_prompt(translated_prompt)
         
-        # Extract image data from response
-        image_data = await extract_image_data_from_gemini_response(response)
-        
-        # Save the image and return the path
-        return await save_image(image_data, text)
+        # Process with Gemini and return the result
+        return await process_image_with_gemini([contents], prompt)
         
     except Exception as e:
         error_msg = f"Error generating image: {str(e)}"
         logger.error(error_msg)
         return error_msg
 
-@mcp.tool()
-async def edit_image(image_path: str, edit_prompt: str, ctx: Context) -> str:
-    """Edit an existing image based on the given text prompt using Google's Gemini model.
 
-    This function expects the image to be already available on the server's filesystem.
-    The host should ensure the image is properly uploaded and accessible before calling this function.
+@mcp.tool()
+async def transform_image_from_encoded(encoded_image: str, prompt: str) -> str:
+    """Transform an existing image based on the given text prompt using Google's Gemini model.
 
     Args:
-        image_path (str): Absolute or relative path to the source image file on the server.
-                         The image must exist and be accessible to the server process.
-                         Example: "/path/to/image.jpg" or "images/input.png"
-        edit_prompt (str): Text prompt describing the desired edits or modifications
-        ctx (Context): MCP context for resource handling
+        encoded_image: Base64 encoded image data with header. Must be in format:
+                    "data:image/[format];base64,[data]"
+                    Where [format] can be: png, jpeg, jpg, gif, webp, etc.
+        prompt: Text prompt describing the desired transformation or modifications
         
     Returns:
-        str: Path to the edited image file
-        
-    Example:
-        # On the host side:
-        # 1. First upload the image to the server
-        # 2. Then call edit_image with the path where the image was saved
-        result = await edit_image(
-            image_path="/path/to/uploaded/image.jpg",
-            edit_prompt="Change the background to sunset colors"
-        )
+        Path to the transformed image file saved on the server
     """
     try:
-        logger.info(f"Edit image called with image_path: {image_path}, edit_prompt: {edit_prompt}, ctx: {ctx}")
+        logger.info(f"Processing transform_image_from_encoded request with prompt: {prompt}")
+
+        # Load and validate the image
+        source_image, _ = await load_image_from_base64(encoded_image)
         
-        # Translate and optimize the edit prompt
-        optimized_edit_prompt = await translate_and_optimize_prompt(edit_prompt)
+        # Translate the prompt to English
+        translated_prompt = await translate_prompt(prompt)
         
-        # Verify that the image file exists
-        if not os.path.exists(image_path):
-            error_msg = f"Error: Image file not found at {image_path}. Please ensure the image is uploaded before calling this function."
-            logger.error(error_msg)
-            return error_msg
+        # Process the transformation
+        return await process_image_transform(source_image, translated_prompt, prompt)
+        
+    except Exception as e:
+        error_msg = f"Error transforming image: {str(e)}"
+        logger.error(error_msg)
+        return error_msg
+
+
+@mcp.tool()
+async def transform_image_from_file(image_file_path: str, prompt: str) -> str:
+    """Transform an existing image file based on the given text prompt using Google's Gemini model.
+
+    Args:
+        image_file_path: Path to the image file to be transformed
+        prompt: Text prompt describing the desired transformation or modifications
+        
+    Returns:
+        Path to the transformed image file saved on the server
+    """
+    try:
+        logger.info(f"Processing transform_image_from_file request with prompt: {prompt}")
+        logger.info(f"Image file path: {image_file_path}")
+
+        # Validate file path
+        if not os.path.exists(image_file_path):
+            raise ValueError(f"Image file not found: {image_file_path}")
+
+        # Translate the prompt to English
+        translated_prompt = await translate_prompt(prompt)
             
         # Load the source image directly using PIL
         try:
-            source_image = PIL.Image.open(image_path)
-            logger.info(f"Successfully loaded source image from {image_path}")
+            source_image = PIL.Image.open(image_file_path)
+            logger.info(f"Successfully loaded image from file: {image_file_path}")
+        except PIL.UnidentifiedImageError:
+            logger.error("Error: Could not identify image format")
+            raise ValueError("Could not identify image format. Supported formats include PNG, JPEG, GIF, WebP.")
         except Exception as e:
-            error_msg = f"Error: Could not load image from {image_path}: {str(e)}"
-            logger.error(error_msg)
-            return error_msg
+            logger.error(f"Error: Could not load image: {str(e)}")
+            raise 
         
-        # Create prompt for image editing
-        text_input = f"""You are an expert image editing AI. Please edit the provided image according to these instructions:
-
-EDIT REQUEST: {optimized_edit_prompt}
-
-IMPORTANT REQUIREMENTS:
-1. Make substantial and noticeable changes as requested
-2. Maintain high image quality and coherence 
-3. Ensure the edited elements blend naturally with the rest of the image
-4. Do not add any text to the image
-5. Focus on the specific edits requested while preserving other elements
-
-The changes should be clear and obvious in the result."""
-        
-        # Call Gemini Vision API for editing
-        response = await call_gemini_vision([text_input, source_image])
-        
-        # Extract image data from response
-        image_data = await extract_image_data_from_gemini_response(response)
-        
-        # Save the edited image and return the path
-        return await save_image(image_data, edit_prompt)
+        # Process the transformation
+        return await process_image_transform(source_image, translated_prompt, prompt)
         
     except Exception as e:
-        error_msg = f"Error editing image: {str(e)}"
+        error_msg = f"Error transforming image: {str(e)}"
         logger.error(error_msg)
         return error_msg
+
 
 if __name__ == "__main__":
     logger.info("Starting Gemini Image Generator MCP server...")

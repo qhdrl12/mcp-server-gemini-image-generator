@@ -9,10 +9,73 @@ This MCP server allows any AI assistant to generate images using Google's Gemini
 ## Features
 
 - Text-to-image generation using Gemini 2.0 Flash
+- Image-to-image transformation based on text prompts
+- Support for both file-based and base64-encoded images
 - Automatic intelligent filename generation based on prompts
+- Automatic translation of non-English prompts
 - Local image storage with configurable output path
 - Strict text exclusion from generated images
 - High-resolution image output
+
+## Available MCP Tools
+
+The server provides the following MCP tools for AI assistants:
+
+### 1. `generate_image_from_text`
+
+Creates a new image from a text prompt description.
+
+```
+generate_image_from_text(prompt: str) -> str
+```
+
+**Parameters:**
+- `prompt`: Text description of the image you want to generate
+
+**Returns:**
+- Path to the generated image file
+
+**Example:**
+- "Generate an image of a sunset over mountains"
+- "Create a photorealistic flying pig in a sci-fi city"
+
+### 2. `transform_image_from_encoded`
+
+Transforms an existing image based on a text prompt using base64-encoded image data.
+
+```
+transform_image_from_encoded(encoded_image: str, prompt: str) -> str
+```
+
+**Parameters:**
+- `encoded_image`: Base64 encoded image data with format header (must be in format: "data:image/[format];base64,[data]")
+- `prompt`: Text description of how you want to transform the image
+
+**Returns:**
+- Path to the transformed image file
+
+**Example:**
+- "Add snow to this landscape"
+- "Change the background to a beach"
+
+### 3. `transform_image_from_file`
+
+Transforms an existing image file based on a text prompt.
+
+```
+transform_image_from_file(image_file_path: str, prompt: str) -> str
+```
+
+**Parameters:**
+- `image_file_path`: Path to the image file to be transformed
+- `prompt`: Text description of how you want to transform the image
+
+**Returns:**
+- Path to the transformed image file
+
+**Example:**
+- "Add a llama next to the person in this image"
+- "Make this daytime scene look like night time"
 
 ## Setup
 
@@ -90,13 +153,19 @@ Add the following to your `claude_desktop_config.json`:
 
 ## Usage
 
-Once installed and configured, you can ask Claude to generate images using prompts like:
+Once installed and configured, you can ask Claude to generate or transform images using prompts like:
 
+### Generating New Images
 - "Generate an image of a sunset over mountains"
 - "Create an illustration of a futuristic cityscape"
 - "Make a picture of a cat wearing sunglasses"
 
-The generated images will be saved to your configured output path and displayed in Claude.
+### Transforming Existing Images
+- "Transform this image by adding snow to the scene"
+- "Edit this photo to make it look like it was taken at night"
+- "Add a dragon flying in the background of this picture"
+
+The generated/transformed images will be saved to your configured output path and displayed in Claude.
 
 ## Testing
 
