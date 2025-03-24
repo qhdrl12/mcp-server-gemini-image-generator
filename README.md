@@ -80,8 +80,8 @@ Add the following to your `claude_desktop_config.json`:
                 "server.py"
             ],
             "env": {
-                "GEMINI_API_KEY": "AIzaSyAJXJZedU52Y6dXCqx933oVr7AAJy3VDT8",
-                "OUTPUT_IMAGE_PATH": "/Users/bongkilee/gen_image"
+                "GEMINI_API_KEY": "GEMINI_API_KEY",
+                "OUTPUT_IMAGE_PATH": "OUTPUT_IMAGE_PATH"
             }
         }
     }
