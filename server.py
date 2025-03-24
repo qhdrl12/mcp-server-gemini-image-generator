@@ -155,7 +155,6 @@ Remember: Your success is measured by your ability to produce satisfying images 
 Query: {text}
 """
 
-    logger.info(f"Using Gemini API key: {os.environ.get('GEMINI_API_KEY')}")
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
     response = client.models.generate_content(
         model="gemini-2.0-flash-exp-image-generation",
