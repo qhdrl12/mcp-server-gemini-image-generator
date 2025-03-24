@@ -22,6 +22,14 @@ This MCP server allows any AI assistant to generate images using Google's Gemini
 - Google AI API key (Gemini)
 - MCP host application (Claude Desktop App, Cursor, or other MCP-compatible clients)
 
+### Getting a Gemini API Key
+
+1. Visit [Google AI Studio API Keys page](https://aistudio.google.com/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy your new API key for use in the configuration
+5. Note: The API key provides a certain quota of free usage per month. You can check your usage in the Google AI Studio
+
 ### Installation
 
 1. Clone the repository:

@@ -1,9 +1,9 @@
 import os
 import logging
 import sys
+import uuid
 
 from io import BytesIO
-import uuid
 from PIL import Image
 
 from google import genai
