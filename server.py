@@ -4,7 +4,7 @@ import logging
 import sys
 import uuid
 from io import BytesIO
-from typing import Optional, Any, Dict, Union, List, Tuple
+from typing import Optional, Any, Union, List, Tuple
 
 import PIL.Image
 from google import genai
@@ -153,7 +153,7 @@ async def process_image_with_gemini(
     contents: List[Any], 
     prompt: str, 
     model: str = "gemini-2.0-flash-exp-image-generation"
-) -> str:
+) -> Tuple[bytes, str]:
     """Process an image request with Gemini and save the result.
     
     Args:
@@ -177,14 +177,16 @@ async def process_image_with_gemini(
     filename = await convert_prompt_to_filename(prompt)
     
     # Save the image and return the path
-    return await save_image(gemini_response, filename)
+    saved_image_path = await save_image(gemini_response, filename)
+
+    return gemini_response, saved_image_path
 
 
 async def process_image_transform(
     source_image: PIL.Image.Image, 
     optimized_edit_prompt: str, 
     original_edit_prompt: str
-) -> str:
+) -> Tuple[bytes, str]:
     """Process image transformation with Gemini.
     
     Args:
@@ -242,7 +244,7 @@ async def load_image_from_base64(encoded_image: str) -> Tuple[PIL.Image.Image, s
 # ==================== MCP Tools ====================
 
 @mcp.tool()
-async def generate_image_from_text(prompt: str) -> str:
+async def generate_image_from_text(prompt: str) -> Tuple[bytes, str]:
     """Generate an image based on the given text prompt using Google's Gemini model.
 
     Args:
@@ -268,7 +270,7 @@ async def generate_image_from_text(prompt: str) -> str:
 
 
 @mcp.tool()
-async def transform_image_from_encoded(encoded_image: str, prompt: str) -> str:
+async def transform_image_from_encoded(encoded_image: str, prompt: str) -> Tuple[bytes, str]:
     """Transform an existing image based on the given text prompt using Google's Gemini model.
 
     Args:
@@ -299,7 +301,7 @@ async def transform_image_from_encoded(encoded_image: str, prompt: str) -> str:
 
 
 @mcp.tool()
-async def transform_image_from_file(image_file_path: str, prompt: str) -> str:
+async def transform_image_from_file(image_file_path: str, prompt: str) -> Tuple[bytes, str]:
     """Transform an existing image file based on the given text prompt using Google's Gemini model.
 
     Args:

@@ -16,6 +16,7 @@ This MCP server allows any AI assistant to generate images using Google's Gemini
 - Local image storage with configurable output path
 - Strict text exclusion from generated images
 - High-resolution image output
+- Direct access to both image data and file path
 
 ## Available MCP Tools
 
@@ -26,18 +27,34 @@ The server provides the following MCP tools for AI assistants:
 Creates a new image from a text prompt description.
 
 ```
-generate_image_from_text(prompt: str) -> str
+generate_image_from_text(prompt: str) -> Tuple[bytes, str]
 ```
 
 **Parameters:**
 - `prompt`: Text description of the image you want to generate
 
 **Returns:**
-- Path to the generated image file
+- A tuple containing:
+  - Raw image data (bytes)
+  - Path to the saved image file (str)
 
-**Example:**
+This dual return format allows AI assistants to either work with the image data directly or reference the saved file path.
+
+**Examples:**
 - "Generate an image of a sunset over mountains"
 - "Create a photorealistic flying pig in a sci-fi city"
+
+#### Example Output
+
+This image was generated using the prompt:
+
+```
+"Hi, can you create a 3d rendered image of a pig with wings and a top hat flying over a happy futuristic scifi city with lots of greenery?"
+```
+
+![Flying pig over sci-fi city](examples/flying_pig_scifi_city.png)
+
+*A 3D rendered pig with wings and a top hat flying over a futuristic sci-fi city filled with greenery*
 
 ### Known Issues
 
@@ -47,14 +64,14 @@ When using this MCP server with Claude Desktop Host:
 
 2. **Path Resolution Problems**: There may be issues with correctly resolving image paths when using Claude Desktop Host. The host application might not properly interpret the returned file paths, making it difficult to access the generated images.
 
-For the best experience, consider using alternative MCP clients or the `transform_image_from_file` method when possible.
+For the best experience, consider using alternative MCP clients or the `transform_image_from_file` method when possible. 
 
 ### 2. `transform_image_from_encoded`
 
 Transforms an existing image based on a text prompt using base64-encoded image data.
 
 ```
-transform_image_from_encoded(encoded_image: str, prompt: str) -> str
+transform_image_from_encoded(encoded_image: str, prompt: str) -> Tuple[bytes, str]
 ```
 
 **Parameters:**
@@ -62,7 +79,9 @@ transform_image_from_encoded(encoded_image: str, prompt: str) -> str
 - `prompt`: Text description of how you want to transform the image
 
 **Returns:**
-- Path to the transformed image file
+- A tuple containing:
+  - Raw transformed image data (bytes)
+  - Path to the saved transformed image file (str)
 
 **Example:**
 - "Add snow to this landscape"
@@ -73,7 +92,7 @@ transform_image_from_encoded(encoded_image: str, prompt: str) -> str
 Transforms an existing image file based on a text prompt.
 
 ```
-transform_image_from_file(image_file_path: str, prompt: str) -> str
+transform_image_from_file(image_file_path: str, prompt: str) -> Tuple[bytes, str]
 ```
 
 **Parameters:**
@@ -81,11 +100,29 @@ transform_image_from_file(image_file_path: str, prompt: str) -> str
 - `prompt`: Text description of how you want to transform the image
 
 **Returns:**
-- Path to the transformed image file
+- A tuple containing:
+  - Raw transformed image data (bytes)
+  - Path to the saved transformed image file (str)
 
-**Example:**
+**Examples:**
 - "Add a llama next to the person in this image"
 - "Make this daytime scene look like night time"
+
+#### Example Transformation
+
+Using the flying pig image created above, we applied a transformation with the following prompt:
+
+```
+"Add a cute baby whale flying alongside the pig"
+```
+
+**Before:**
+![Flying pig over sci-fi city](examples/flying_pig_scifi_city.png)
+
+**After:**
+![Flying pig with baby whale](examples/pig_cute_baby_whale.png)
+
+*The original flying pig image with a cute baby whale added flying alongside it*
 
 ## Setup
 
@@ -175,7 +212,7 @@ Once installed and configured, you can ask Claude to generate or transform image
 - "Edit this photo to make it look like it was taken at night"
 - "Add a dragon flying in the background of this picture"
 
-The generated/transformed images will be saved to your configured output path and displayed in Claude.
+The generated/transformed images will be saved to your configured output path and displayed in Claude. With the updated return types, AI assistants can also work directly with the image data without needing to access the saved files.
 
 ## Testing
 
