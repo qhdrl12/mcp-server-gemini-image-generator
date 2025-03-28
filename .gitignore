@@ -114,11 +114,3 @@ dmypy.json
 # VS Code
 .vscode/
 .idea/
-
-# Project specific
-OUTPUT_IMAGE_PATH/
-*.png
-*.jpg
-*.jpeg
-*.svg
-*.gif 
