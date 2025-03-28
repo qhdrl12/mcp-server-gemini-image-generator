@@ -39,6 +39,16 @@ generate_image_from_text(prompt: str) -> str
 - "Generate an image of a sunset over mountains"
 - "Create a photorealistic flying pig in a sci-fi city"
 
+### Known Issues
+
+When using this MCP server with Claude Desktop Host:
+
+1. **Performance Issues**: Using `transform_image_from_encoded` may take significantly longer to process compared to other methods. This is due to the overhead of transferring large base64-encoded image data through the MCP protocol.
+
+2. **Path Resolution Problems**: There may be issues with correctly resolving image paths when using Claude Desktop Host. The host application might not properly interpret the returned file paths, making it difficult to access the generated images.
+
+For the best experience, consider using alternative MCP clients or the `transform_image_from_file` method when possible.
+
 ### 2. `transform_image_from_encoded`
 
 Transforms an existing image based on a text prompt using base64-encoded image data.
