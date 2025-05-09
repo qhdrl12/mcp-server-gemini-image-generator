@@ -1,0 +1,31 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - geminiApiKey
+    properties:
+      geminiApiKey:
+        type: string
+        description: Google Gemini API key
+      outputImagePath:
+        type: string
+        default: /images
+        description: Path to save generated images inside container
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'python',
+      args: ['server.py'],
+      env: {
+        GEMINI_API_KEY: config.geminiApiKey,
+        OUTPUT_IMAGE_PATH: config.outputImagePath
+      }
+    })
+  exampleConfig:
+    geminiApiKey: YOUR_GEMINI_API_KEY
+    outputImagePath: /images
