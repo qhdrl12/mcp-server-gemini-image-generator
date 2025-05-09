@@ -1,6 +1,10 @@
 [![MseeP Badge](https://mseep.net/pr/qhdrl12-mcp-server-gemini-image-generator-badge.jpg)](https://mseep.ai/app/qhdrl12-mcp-server-gemini-image-generator)
 [![smithery badge](https://smithery.ai/badge/@qhdrl12/mcp-server-gemini-image-gen)](https://smithery.ai/server/@qhdrl12/mcp-server-gemini-image-gen)
 
+<a href="https://glama.ai/mcp/servers/@qhdrl12/mcp-server-gemini-image-generator">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@qhdrl12/mcp-server-gemini-image-generator/badge" alt="Gemini Image Generator Server MCP server" />
+</a>
+
 # Gemini Image Generator MCP Server
 
 Generate high-quality images from text prompts using Google's Gemini model through the MCP protocol.
