@@ -1,4 +1,5 @@
 [![MseeP Badge](https://mseep.net/pr/qhdrl12-mcp-server-gemini-image-generator-badge.jpg)](https://mseep.ai/app/qhdrl12-mcp-server-gemini-image-generator)
+[![smithery badge](https://smithery.ai/badge/@qhdrl12/mcp-server-gemini-image-gen)](https://smithery.ai/server/@qhdrl12/mcp-server-gemini-image-gen)
 
 # Gemini Image Generator MCP Server
 
