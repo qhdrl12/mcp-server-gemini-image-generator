@@ -11,8 +11,8 @@ from google import genai
 from google.genai import types
 from mcp.server.fastmcp import FastMCP
 
-from prompts import get_image_generation_prompt, get_image_transformation_prompt, get_translate_prompt
-from utils import save_image
+from .prompts import get_image_generation_prompt, get_image_transformation_prompt, get_translate_prompt
+from .utils import save_image
 
 
 # Setup logging
@@ -342,9 +342,10 @@ async def transform_image_from_file(image_file_path: str, prompt: str) -> Tuple[
         return error_msg
 
 
-if __name__ == "__main__":
+def main():
     logger.info("Starting Gemini Image Generator MCP server...")
-    
     mcp.run(transport="stdio")
-
     logger.info("Server stopped")
+
+if __name__ == "__main__":
+    main()
