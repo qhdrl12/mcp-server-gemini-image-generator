@@ -145,6 +145,15 @@ Using the flying pig image created above, we applied a transformation with the f
 
 ### Installation
 
+### Installing via Smithery
+
+To install Gemini Image Generator MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@qhdrl12/mcp-server-gemini-image-gen):
+
+```bash
+npx -y @smithery/cli install @qhdrl12/mcp-server-gemini-image-gen --client claude
+```
+
+### Manual Installation
 1. Clone the repository:
 ```
 git clone https://github.com/your-username/gemini-image-generator.git

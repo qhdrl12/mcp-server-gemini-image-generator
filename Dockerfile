@@ -1,3 +1,4 @@
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 ENV UV_COMPILE_BYTECODE=1
@@ -17,6 +18,11 @@ ADD . /app
 
 RUN --mount=type=cache,target=UV_CACHE_DIR \
     uv sync --frozen --no-dev --no-editable
+
+# Create image output directory
+ARG OUTPUT_IMAGE_PATH=/images
+RUN mkdir -p ${OUTPUT_IMAGE_PATH}
+ENV OUTPUT_IMAGE_PATH=${OUTPUT_IMAGE_PATH}
 
 # Add virtual environment to PATH
 ENV PATH="/app/.venv/bin:$PATH"
