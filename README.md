@@ -1,3 +1,5 @@
+[![MseeP Badge](https://mseep.net/pr/qhdrl12-mcp-server-gemini-image-generator-badge.jpg)](https://mseep.ai/app/qhdrl12-mcp-server-gemini-image-generator)
+
 # Gemini Image Generator MCP Server
 
 Generate high-quality images from text prompts using Google's Gemini model through the MCP protocol.
