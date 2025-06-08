@@ -197,7 +197,7 @@ Add the following to your `claude_desktop_config.json`:
             "command": "uv",
             "args": [
                 "--directory",
-                "/absolute/path/to/gemini-image-generator",
+                "/absolute/path/to/mcp-server-gemini-image-generator/src/mcp_server_gemini_image_generator",
                 "run",
                 "server.py"
             ],
