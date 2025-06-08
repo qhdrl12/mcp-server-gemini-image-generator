@@ -11,8 +11,8 @@ from google import genai
 from google.genai import types
 from mcp.server.fastmcp import FastMCP
 
-from .prompts import get_image_generation_prompt, get_image_transformation_prompt, get_translate_prompt
-from .utils import save_image
+from prompts import get_image_generation_prompt, get_image_transformation_prompt, get_translate_prompt
+from utils import save_image
 
 
 # Setup logging
@@ -31,7 +31,7 @@ mcp = FastMCP("mcp-server-gemini-image-generator")
 
 async def call_gemini(
     contents: List[Any], 
-    model: str = "gemini-1.5-flash", 
+    model: str = "gemini-2.0-flash-preview-image-generation", 
     config: Optional[types.GenerateContentConfig] = None, 
     text_only: bool = False
 ) -> Union[str, bytes]:
@@ -152,7 +152,7 @@ async def translate_prompt(text: str) -> str:
 async def process_image_with_gemini(
     contents: List[Any], 
     prompt: str, 
-    model: str = "gemini-2.0-flash-exp-image-generation"
+    model: str = "gemini-2.0-flash-preview-image-generation"
 ) -> Tuple[bytes, str]:
     """Process an image request with Gemini and save the result.
     
