@@ -31,7 +31,7 @@ mcp = FastMCP("mcp-server-gemini-image-generator")
 
 async def call_gemini(
     contents: List[Any], 
-    model: str = "gemini-2.0-flash-preview-image-generation", 
+    model: str = "gemini-3-pro-image-preview", 
     config: Optional[types.GenerateContentConfig] = None, 
     text_only: bool = False
 ) -> Union[str, bytes]:
@@ -152,7 +152,7 @@ async def translate_prompt(text: str) -> str:
 async def process_image_with_gemini(
     contents: List[Any], 
     prompt: str, 
-    model: str = "gemini-2.0-flash-preview-image-generation"
+    model: str = "gemini-3-pro-image-preview"
 ) -> Tuple[bytes, str]:
     """Process an image request with Gemini and save the result.
     
@@ -244,7 +244,7 @@ async def load_image_from_base64(encoded_image: str) -> Tuple[PIL.Image.Image, s
 # ==================== MCP Tools ====================
 
 @mcp.tool()
-async def generate_image_from_text(prompt: str) -> Tuple[bytes, str]:
+async def generate_image_from_text(prompt: str) -> str:
     """Generate an image based on the given text prompt using Google's Gemini model.
 
     Args:
@@ -261,7 +261,8 @@ async def generate_image_from_text(prompt: str) -> Tuple[bytes, str]:
         contents = get_image_generation_prompt(translated_prompt)
         
         # Process with Gemini and return the result
-        return await process_image_with_gemini([contents], prompt)
+        _, path = await process_image_with_gemini([contents], prompt)
+        return path
         
     except Exception as e:
         error_msg = f"Error generating image: {str(e)}"
