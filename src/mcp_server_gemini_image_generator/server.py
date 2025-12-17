@@ -266,16 +266,16 @@ async def generate_image_from_text(prompt: str, model: str = "gemini-3-pro-image
         
         # Process with Gemini and return the result
         _, path = await process_image_with_gemini([contents], prompt, model=model)
-        return path
-        
     except Exception as e:
         error_msg = f"Error generating image: {str(e)}"
         logger.error(error_msg)
         return error_msg
+    else:
+        return path
 
 
 @mcp.tool()
-async def transform_image_from_encoded(encoded_image: str, prompt: str, model: str = "gemini-3-pro-image-preview") -> Tuple[bytes, str]:
+async def transform_image_from_encoded(encoded_image: str, prompt: str, model: str = "gemini-3-pro-image-preview") -> str:
     """Transform an existing image based on the given text prompt using Google's Gemini model.
 
     Args:
@@ -298,16 +298,18 @@ async def transform_image_from_encoded(encoded_image: str, prompt: str, model: s
         translated_prompt = await translate_prompt(prompt)
         
         # Process the transformation
-        return await process_image_transform(source_image, translated_prompt, prompt, model=model)
+        _, path = await process_image_transform(source_image, translated_prompt, prompt, model=model)
         
     except Exception as e:
         error_msg = f"Error transforming image: {str(e)}"
         logger.error(error_msg)
         return error_msg
+    else:
+        return path
 
 
 @mcp.tool()
-async def transform_image_from_file(image_file_path: str, prompt: str, model: str = "gemini-3-pro-image-preview") -> Tuple[bytes, str]:
+async def transform_image_from_file(image_file_path: str, prompt: str, model: str = "gemini-3-pro-image-preview") -> str:
     """Transform an existing image file based on the given text prompt using Google's Gemini model.
 
     Args:
@@ -341,12 +343,14 @@ async def transform_image_from_file(image_file_path: str, prompt: str, model: st
             raise 
         
         # Process the transformation
-        return await process_image_transform(source_image, translated_prompt, prompt, model=model)
+        _, path = await process_image_transform(source_image, translated_prompt, prompt, model=model)
         
     except Exception as e:
         error_msg = f"Error transforming image: {str(e)}"
         logger.error(error_msg)
         return error_msg
+    else:
+        return path
 
 
 def main():
